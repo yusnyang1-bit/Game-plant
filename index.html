@@ -1,115 +1,135 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>情緒煉金術：廢物變鮮花</title>
+    <title>情緒煉金術 2.0 - 粒子生命</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: #0a0a0c; color: #e0e0e0; overflow: hidden; }
-        .glow { filter: drop-shadow(0 0 15px var(--glow-color)); }
-        #plant-canvas { filter: blur(0.5px); }
+        body { background: radial-gradient(circle at center, #1a1a2e 0%, #050505 100%); overflow: hidden; color: #fff; }
+        #ui-layer { pointer-events: none; }
+        .interactive { pointer-events: auto; }
+        canvas { filter: contrast(120%) brightness(110%); }
     </style>
 </head>
-<body class="flex flex-col items-center justify-end h-screen pb-10">
+<body class="flex flex-col items-center justify-end h-screen">
 
-    <div class="relative w-full flex-1 flex items-center justify-center">
-        <canvas id="plant-canvas" width="600" height="600"></canvas>
-        <div id="status-msg" class="absolute top-10 text-gray-500 italic text-sm">輸入你的壓力，將它轉化為養分...</div>
-    </div>
+    <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
 
-    <div class="w-full max-w-md px-6 z-10">
-        <div class="bg-white/5 backdrop-blur-lg rounded-2xl p-4 border border-white/10 shadow-2xl">
-            <textarea id="input-box" 
-                class="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-gray-600 resize-none h-24" 
-                placeholder="說說那些讓你煩心的事..."></textarea>
-            <div class="flex justify-between items-center mt-2">
-                <span id="char-count" class="text-xs text-gray-600">0 字</span>
-                <button onclick="growPlant()" 
-                    class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-full font-bold transition-all transform active:scale-95">
-                    轉化為能量
+    <div id="ui-layer" class="relative w-full max-w-lg p-8 mb-10 flex flex-col items-center">
+        <div id="msg" class="text-indigo-300 text-sm mb-4 opacity-0 transition-opacity duration-1000">正在萃取情緒養分...</div>
+        
+        <div class="interactive w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            <textarea id="input" 
+                class="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-indigo-900/50 resize-none h-20 text-indigo-100" 
+                placeholder="傾倒你的秘密、憤怒或壓力..."></textarea>
+            
+            <div class="flex justify-end mt-4">
+                <button onclick="ignite()" 
+                    class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                    賦予生命
                 </button>
             </div>
         </div>
     </div>
 
-    <script>
-        const canvas = document.getElementById('plant-canvas');
-        const ctx = canvas.getContext('2d');
-        const input = document.getElementById('input-box');
-        
-        let segments = [];
-        let growthStage = 0;
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let width, height;
+let branches = [];
 
-        // 初始化畫布
-        function init() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+// 初始化畫布尺寸
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Branch {
+    constructor(x, y, angle, speed, life, color, width) {
+        this.x = x;
+        this.y = y;
+        this.angle = angle;
+        this.speed = speed;
+        this.life = life;
+        this.initialLife = life;
+        this.color = color;
+        this.w = width;
+    }
+
+    update() {
+        // 核心進化：隨機擾動（模擬風與生命感）
+        this.angle += (Math.random() - 0.5) * 0.2;
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+        this.life--;
+        this.w *= 0.98; // 越長越細
+
+        // 渲染粒子
+        ctx.beginPath();
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = this.w;
+        ctx.lineCap = 'round';
+        ctx.shadowBlur = this.initialLife / 5;
+        ctx.shadowColor = this.color;
+        ctx.moveTo(this.x - Math.cos(this.angle)*this.speed, this.y - Math.sin(this.angle)*this.speed);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
+
+        // 分裂邏輯：根據壓力深度決定分支機率
+        if (this.life > 0 && Math.random() < 0.05 && this.w > 1) {
+            branches.push(new Branch(this.x, this.y, this.angle + 0.4, this.speed * 0.9, this.life * 0.8, this.color, this.w));
+            branches.push(new Branch(this.x, this.y, this.angle - 0.4, this.speed * 0.9, this.life * 0.8, this.color, this.w));
+            return false;
         }
+        return this.life <= 0;
+    }
+}
 
-        // 核心邏輯：情緒轉化
-        async function growPlant() {
-            const text = input.value.trim();
-            if (!text) return;
+function ignite() {
+    const text = document.getElementById('input').value;
+    if (!text) return;
 
-            // 模擬 AI 分析情緒 (實戰中應串接 API)
-            const stressLevel = Math.min(text.length / 10, 10); // 字數越多，能量越高
-            const hue = 240 + (stressLevel * 12); // 從深藍(憂鬱)到紫紅(奇幻)
-            
-            // 視覺反馈：粒子效果
-            document.getElementById('status-msg').innerText = "正在吸收負能量...";
-            
-            // 繪製植物
-            drawBranch(canvas.width / 2, canvas.height, -90, stressLevel * 15, 10, hue);
-            
-            input.value = ""; // 清空
-            setTimeout(() => {
-                document.getElementById('status-msg').innerText = "你的焦慮已開出一朵花。";
-            }, 2000);
-        }
+    const msg = document.getElementById('msg');
+    msg.style.opacity = 1;
 
-        // 遞歸繪製奇幻植物
-        function drawBranch(x, y, angle, len, branchWidth, hue) {
-            ctx.beginPath();
-            ctx.save();
-            ctx.strokeStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.5)`;
-            ctx.lineWidth = branchWidth;
-            ctx.translate(x, y);
-            ctx.rotate(angle * Math.PI / 180);
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, -len);
-            ctx.stroke();
+    // 進化版情緒算法
+    // 1. 根據字數決定高度 (Life)
+    // 2. 根據語氣標點決定色彩 (Hue)
+    // 3. 根據輸入速度決定生長速度 (Speed)
+    const stressScore = Math.min(text.length, 100);
+    const hue = (text.includes('!') || text.includes('幹')) ? 0 : (200 + Math.random() * 60); // 憤怒變紅，憂鬱變藍
+    const color = `hsla(${hue}, 80%, 60%, ${Math.random() * 0.5 + 0.5})`;
 
-            if (len < 10) {
-                // 開出奇幻花朵
-                drawFlower(0, -len, hue);
-                ctx.restore();
-                return;
-            }
+    // 從底部向上噴發粒子
+    for(let i=0; i<3; i++) {
+        branches.push(new Branch(
+            width / 2, 
+            height, 
+            -Math.PI / 2 + (Math.random()-0.5), 
+            2 + Math.random() * 3, 
+            50 + stressScore, 
+            color, 
+            5 + (stressScore/10)
+        ));
+    }
 
-            // 隨機分枝：讓植物有有機感
-            setTimeout(() => {
-                drawBranch(0, -len, angle + (Math.random() * 30 - 15), len * 0.75, branchWidth * 0.7, hue);
-                drawBranch(0, -len, angle - (Math.random() * 30 - 15), len * 0.75, branchWidth * 0.7, hue);
-            }, 100);
+    document.getElementById('input').value = '';
+    setTimeout(() => msg.style.opacity = 0, 3000);
+}
 
-            ctx.restore();
-        }
+function animate() {
+    // 這裡不清理畫布，形成生長軌跡
+    // 但加入極淡的半透明層，產生緩慢消散的視覺流動感
+    ctx.fillStyle = 'rgba(5, 5, 5, 0.02)';
+    ctx.fillRect(0, 0, width, height);
 
-        function drawFlower(x, y, hue) {
-            ctx.fillStyle = `hsla(${hue + 40}, 100%, 70%, 0.9)`;
-            ctx.beginPath();
-            ctx.arc(x, y, 8, 0, Math.PI * 2);
-            ctx.fill();
-            // 花瓣發光
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = "white";
-            ctx.stroke();
-        }
+    branches = branches.filter(b => !b.update());
+    requestAnimationFrame(animate);
+}
 
-        init();
-    </script>
+animate();
+</script>
 </body>
 </html>
