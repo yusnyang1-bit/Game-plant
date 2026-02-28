@@ -2,31 +2,32 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>情緒煉金術 2.0 - 粒子生命</title>
+    <title>情緒煉金術 3.0 - 演化生命體</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background: radial-gradient(circle at center, #1a1a2e 0%, #050505 100%); overflow: hidden; color: #fff; }
-        #ui-layer { pointer-events: none; }
-        .interactive { pointer-events: auto; }
-        canvas { filter: contrast(120%) brightness(110%); }
+        body { background: #050508; overflow: hidden; color: #fff; font-family: sans-serif; }
+        canvas { filter: blur(0.4px) contrast(1.1); }
+        .hud { text-shadow: 0 0 10px rgba(99, 102, 241, 0.5); }
     </style>
 </head>
 <body class="flex flex-col items-center justify-end h-screen">
 
     <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
 
-    <div id="ui-layer" class="relative w-full max-w-lg p-8 mb-10 flex flex-col items-center">
-        <div id="msg" class="text-indigo-300 text-sm mb-4 opacity-0 transition-opacity duration-1000">正在萃取情緒養分...</div>
-        
-        <div class="interactive w-full bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+    <div class="relative z-10 w-full max-w-lg p-8 mb-6">
+        <div class="bg-black/20 backdrop-blur-md rounded-3xl p-6 border border-white/5 shadow-2xl">
+            <div id="plant-status" class="hud text-xs uppercase tracking-widest text-indigo-400 mb-2">植物狀態：待喚醒...</div>
             <textarea id="input" 
-                class="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-indigo-900/50 resize-none h-20 text-indigo-100" 
-                placeholder="傾倒你的秘密、憤怒或壓力..."></textarea>
+                class="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-gray-700 resize-none h-20 text-indigo-100" 
+                placeholder="輸入今天的壓力來源..."></textarea>
             
-            <div class="flex justify-end mt-4">
-                <button onclick="ignite()" 
-                    class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
-                    賦予生命
+            <div class="flex justify-between items-center mt-4">
+                <div id="energy-bar" class="h-1 w-32 bg-gray-800 rounded-full overflow-hidden">
+                    <div id="energy-fill" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 20%"></div>
+                </div>
+                <button onclick="feedPlant()" 
+                    class="bg-white text-black hover:bg-indigo-400 hover:text-white px-8 py-2 rounded-full font-bold transition-all active:scale-95">
+                    注入能量
                 </button>
             </div>
         </div>
@@ -35,101 +36,119 @@
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-let width, height;
-let branches = [];
+const input = document.getElementById('input');
+const energyFill = document.getElementById('energy-fill');
+const statusLabel = document.getElementById('plant-status');
 
-// 初始化畫布尺寸
+let width, height;
+// 植物的核心基因
+let plantDNA = {
+    branches: [],
+    baseHue: 200,
+    stressLevel: 0,
+    growthProgress: 0.2, // 初始生長度
+    richness: 1.5       // 分枝豐富度
+};
+
 function resize() {
     width = canvas.width = window.innerWidth;
     height = canvas.height = window.innerHeight;
+    drawScene(); // 尺寸改變重繪
 }
 window.addEventListener('resize', resize);
 resize();
 
-class Branch {
-    constructor(x, y, angle, speed, life, color, width) {
-        this.x = x;
-        this.y = y;
-        this.angle = angle;
-        this.speed = speed;
-        this.life = life;
-        this.initialLife = life;
-        this.color = color;
-        this.w = width;
+// 初始化一株隨機的小植物
+function initPlant() {
+    plantDNA.baseHue = Math.random() * 360;
+    plantDNA.stressLevel = 0;
+    plantDNA.growthProgress = 0.3;
+    drawScene();
+}
+
+function drawScene() {
+    ctx.clearRect(0, 0, width, height);
+    // 繪製微弱的地平線光芒
+    const grad = ctx.createRadialGradient(width/2, height, 0, width/2, height, height/2);
+    grad.addColorStop(0, `hsla(${plantDNA.baseHue}, 30%, 10%, 1)`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,width,height);
+
+    // 從底部中心生長
+    renderTree(width/2, height - 50, -Math.PI/2, 80 * plantDNA.growthProgress, 8, plantDNA.baseHue);
+}
+
+function renderTree(x, y, angle, len, thickness, hue) {
+    if (len < 5) {
+        // 繪製發光花朵 (只在成熟時出現)
+        if (plantDNA.growthProgress > 0.6) {
+            ctx.beginPath();
+            ctx.arc(x, y, 3 + (plantDNA.stressLevel * 2), 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${hue + 40}, 80%, 70%, 0.8)`;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = `hsla(${hue + 40}, 100%, 50%, 1)`;
+            ctx.fill();
+        }
+        return;
     }
 
-    update() {
-        // 核心進化：隨機擾動（模擬風與生命感）
-        this.angle += (Math.random() - 0.5) * 0.2;
-        this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed;
-        this.life--;
-        this.w *= 0.98; // 越長越細
+    const nextX = x + Math.cos(angle) * len;
+    const nextY = y + Math.sin(angle) * len;
 
-        // 渲染粒子
-        ctx.beginPath();
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = this.w;
-        ctx.lineCap = 'round';
-        ctx.shadowBlur = this.initialLife / 5;
-        ctx.shadowColor = this.color;
-        ctx.moveTo(this.x - Math.cos(this.angle)*this.speed, this.y - Math.sin(this.angle)*this.speed);
-        ctx.lineTo(this.x, this.y);
-        ctx.stroke();
+    ctx.beginPath();
+    ctx.strokeStyle = `hsla(${hue}, 60%, ${30 + plantDNA.stressLevel * 5}%, 0.8)`;
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'round';
+    ctx.moveTo(x, y);
+    ctx.lineTo(nextX, nextY);
+    ctx.stroke();
 
-        // 分裂邏輯：根據壓力深度決定分支機率
-        if (this.life > 0 && Math.random() < 0.05 && this.w > 1) {
-            branches.push(new Branch(this.x, this.y, this.angle + 0.4, this.speed * 0.9, this.life * 0.8, this.color, this.w));
-            branches.push(new Branch(this.x, this.y, this.angle - 0.4, this.speed * 0.9, this.life * 0.8, this.color, this.w));
-            return false;
-        }
-        return this.life <= 0;
+    // 關鍵：根據 DNA 決定分支
+    const numBranches = plantDNA.richness > 2 ? 3 : 2;
+    for (let i = 0; i < numBranches; i++) {
+        const nextAngle = angle + (Math.random() - 0.5) * 0.6;
+        const nextLen = len * (0.65 + Math.random() * 0.15);
+        renderTree(nextX, nextY, nextAngle, nextLen, thickness * 0.7, hue);
     }
 }
 
-function ignite() {
-    const text = document.getElementById('input').value;
+function feedPlant() {
+    const text = input.value.trim();
     if (!text) return;
 
-    const msg = document.getElementById('msg');
-    msg.style.opacity = 1;
-
-    // 進化版情緒算法
-    // 1. 根據字數決定高度 (Life)
-    // 2. 根據語氣標點決定色彩 (Hue)
-    // 3. 根據輸入速度決定生長速度 (Speed)
-    const stressScore = Math.min(text.length, 100);
-    const hue = (text.includes('!') || text.includes('幹')) ? 0 : (200 + Math.random() * 60); // 憤怒變紅，憂鬱變藍
-    const color = `hsla(${hue}, 80%, 60%, ${Math.random() * 0.5 + 0.5})`;
-
-    // 從底部向上噴發粒子
-    for(let i=0; i<3; i++) {
-        branches.push(new Branch(
-            width / 2, 
-            height, 
-            -Math.PI / 2 + (Math.random()-0.5), 
-            2 + Math.random() * 3, 
-            50 + stressScore, 
-            color, 
-            5 + (stressScore/10)
-        ));
+    // 模擬吸收過程
+    statusLabel.innerText = "吸收情緒中...";
+    
+    // 根據輸入內容更新 DNA
+    const addedEnergy = Math.min(text.length / 50, 0.2);
+    plantDNA.growthProgress = Math.min(plantDNA.growthProgress + addedEnergy, 1.5);
+    plantDNA.stressLevel = Math.min(plantDNA.stressLevel + (text.length / 20), 10);
+    
+    // 改變顏色：如果輸入強烈詞彙
+    if (text.includes("氣") || text.includes("怒") || text.includes("煩")) {
+        plantDNA.baseHue -= 20; // 偏向紅色
+        plantDNA.richness += 0.5; // 變得更尖銳茂密
+    } else {
+        plantDNA.baseHue += 10; // 偏向冷色
     }
 
-    document.getElementById('input').value = '';
-    setTimeout(() => msg.style.opacity = 0, 3000);
+    // 更新進度條
+    energyFill.style.width = (plantDNA.growthProgress * 60) + "%";
+
+    // 平滑重繪 (加入一點點震動效果)
+    let frames = 0;
+    const animateGrowth = () => {
+        drawScene();
+        if (frames++ < 30) requestAnimationFrame(animateGrowth);
+        else statusLabel.innerText = "進化完成。";
+    };
+    animateGrowth();
+
+    input.value = "";
 }
 
-function animate() {
-    // 這裡不清理畫布，形成生長軌跡
-    // 但加入極淡的半透明層，產生緩慢消散的視覺流動感
-    ctx.fillStyle = 'rgba(5, 5, 5, 0.02)';
-    ctx.fillRect(0, 0, width, height);
-
-    branches = branches.filter(b => !b.update());
-    requestAnimationFrame(animate);
-}
-
-animate();
+initPlant();
 </script>
 </body>
 </html>
