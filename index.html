@@ -1,1 +1,115 @@
 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情緒煉金術：廢物變鮮花</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0a0a0c; color: #e0e0e0; overflow: hidden; }
+        .glow { filter: drop-shadow(0 0 15px var(--glow-color)); }
+        #plant-canvas { filter: blur(0.5px); }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-end h-screen pb-10">
+
+    <div class="relative w-full flex-1 flex items-center justify-center">
+        <canvas id="plant-canvas" width="600" height="600"></canvas>
+        <div id="status-msg" class="absolute top-10 text-gray-500 italic text-sm">輸入你的壓力，將它轉化為養分...</div>
+    </div>
+
+    <div class="w-full max-w-md px-6 z-10">
+        <div class="bg-white/5 backdrop-blur-lg rounded-2xl p-4 border border-white/10 shadow-2xl">
+            <textarea id="input-box" 
+                class="w-full bg-transparent border-none focus:ring-0 text-lg placeholder-gray-600 resize-none h-24" 
+                placeholder="說說那些讓你煩心的事..."></textarea>
+            <div class="flex justify-between items-center mt-2">
+                <span id="char-count" class="text-xs text-gray-600">0 字</span>
+                <button onclick="growPlant()" 
+                    class="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-full font-bold transition-all transform active:scale-95">
+                    轉化為能量
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plant-canvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('input-box');
+        
+        let segments = [];
+        let growthStage = 0;
+
+        // 初始化畫布
+        function init() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 核心邏輯：情緒轉化
+        async function growPlant() {
+            const text = input.value.trim();
+            if (!text) return;
+
+            // 模擬 AI 分析情緒 (實戰中應串接 API)
+            const stressLevel = Math.min(text.length / 10, 10); // 字數越多，能量越高
+            const hue = 240 + (stressLevel * 12); // 從深藍(憂鬱)到紫紅(奇幻)
+            
+            // 視覺反馈：粒子效果
+            document.getElementById('status-msg').innerText = "正在吸收負能量...";
+            
+            // 繪製植物
+            drawBranch(canvas.width / 2, canvas.height, -90, stressLevel * 15, 10, hue);
+            
+            input.value = ""; // 清空
+            setTimeout(() => {
+                document.getElementById('status-msg').innerText = "你的焦慮已開出一朵花。";
+            }, 2000);
+        }
+
+        // 遞歸繪製奇幻植物
+        function drawBranch(x, y, angle, len, branchWidth, hue) {
+            ctx.beginPath();
+            ctx.save();
+            ctx.strokeStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.5)`;
+            ctx.lineWidth = branchWidth;
+            ctx.translate(x, y);
+            ctx.rotate(angle * Math.PI / 180);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -len);
+            ctx.stroke();
+
+            if (len < 10) {
+                // 開出奇幻花朵
+                drawFlower(0, -len, hue);
+                ctx.restore();
+                return;
+            }
+
+            // 隨機分枝：讓植物有有機感
+            setTimeout(() => {
+                drawBranch(0, -len, angle + (Math.random() * 30 - 15), len * 0.75, branchWidth * 0.7, hue);
+                drawBranch(0, -len, angle - (Math.random() * 30 - 15), len * 0.75, branchWidth * 0.7, hue);
+            }, 100);
+
+            ctx.restore();
+        }
+
+        function drawFlower(x, y, hue) {
+            ctx.fillStyle = `hsla(${hue + 40}, 100%, 70%, 0.9)`;
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // 花瓣發光
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "white";
+            ctx.stroke();
+        }
+
+        init();
+    </script>
+</body>
+</html>
